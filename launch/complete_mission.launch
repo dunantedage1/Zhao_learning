@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- complete_mission节点参数说明 -->
+    <!-- 
+        这个launch文件启动无人机任务节点
+        任务包括：起飞、悬停、带避障的前向飞行、降落
+    -->
+    
+    <!-- 启动complete_mission节点 -->
+    <node pkg="complete_mission" 
+          type="complete_mission_node" 
+          name="complete_mission" 
+          output="screen"
+          respawn="false">
+    </node>  
+    
+</launch>

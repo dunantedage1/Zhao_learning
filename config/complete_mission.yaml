@@ -1,0 +1,8 @@
+R_outside : 2.0
+R_inside : 1.0
+p_R : 2.0
+p_r : 3.0
+p_xy : 0.5
+vel_track_max : 0.5
+vel_collision_max : 1.0
+vel_sp_max : 1.0
