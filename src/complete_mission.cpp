@@ -113,7 +113,7 @@ void cal_min_distance(const sensor_msgs::LaserScan& scan) {
 /************************************************************************
  * 用于限制最大速度的函数
  ************************************************************************/
-float satfunc(float data, float Max) {
+float speed_limit(float data, float Max) {
     if (std::abs(data) > Max) 
         return (data > 0) ? Max : -Max;
     else 
@@ -147,7 +147,7 @@ void collision_avoidance(float target_x, float target_y) {
     
     // 速度限幅
     for (int i = 0; i < 2; i++) {
-        vel_track[i] = satfunc(vel_track[i], vel_track_max);
+        vel_track[i] = speed_limit(vel_track[i], vel_track_max);
     }
     
     vel_collision[0] = 0;
@@ -200,7 +200,7 @@ void collision_avoidance(float target_x, float target_y) {
         
         // 避障速度限幅
         for (int i = 0; i < 2; i++) {
-            vel_collision[i] = satfunc(vel_collision[i], vel_collision_max);
+            vel_collision[i] = speed_limit(vel_collision[i], vel_collision_max);
         }
     }
     
@@ -224,7 +224,7 @@ void collision_avoidance(float target_x, float target_y) {
     
     // 总速度限幅
     for (int i = 0; i < 2; i++) {
-        vel_sp_body[i] = satfunc(vel_sp_body[i], vel_sp_max);
+        vel_sp_body[i] = speed_limit(vel_sp_body[i], vel_sp_max);
     }
     
     // 转换到ENU坐标系
@@ -380,21 +380,17 @@ bool mission_forward_with_avoidance(float distance, float max_error) {
  * 获取正前方90°范围内的索引范围，穿门用的
  ************************************************************************/
 void get_front_indices(const sensor_msgs::LaserScan& scan, int& start_idx, int& end_idx) {
-    // 计算正前方±45°对应的索引范围
-    float half_range_rad = DETECTION_ANGLE_RANGE * M_PI / 180.0f; // 45°转为弧度
+    // 正前方是0°，范围是-45°到+45°
+    float center_angle = 0.0f; // 正前方是0°
+    float half_range_rad = 45.0f * M_PI / 180.0f;
     
-    // 计算起始和结束索引
-    start_idx = (int)((scan.angle_max - half_range_rad) / scan.angle_increment);
-    end_idx = (int)((scan.angle_max + half_range_rad) / scan.angle_increment);
+    // 计算相对于angle_min的索引
+    start_idx = (int)((center_angle - half_range_rad - scan.angle_min) / scan.angle_increment);
+    end_idx = (int)((center_angle + half_range_rad - scan.angle_min) / scan.angle_increment);
     
-    // 确保索引在有效范围内
+    // 边界保护
     start_idx = std::max(0, start_idx);
     end_idx = std::min((int)scan.ranges.size() - 1, end_idx);
-    
-    ROS_DEBUG_THROTTLE(5, "检测范围: 索引[%d, %d], 角度[%.1f°, %.1f°]", 
-                      start_idx, end_idx, 
-                      (scan.angle_max - half_range_rad) * 180.0/M_PI,
-                      (scan.angle_max + half_range_rad) * 180.0/M_PI);
 }
 /************************************************************************
  * 基于拐角检测的门识别算法（只检测正前方90°范围内）
@@ -499,33 +495,12 @@ bool detect_gate_by_corners(const sensor_msgs::LaserScan& scan, float current_ya
             // 检查宽度是否合理
             if (actual_width < GAP_MIN_WIDTH || actual_width > GAP_MAX_WIDTH) continue;
             
-            // 检查两个拐角距离是否相近
-            float distance_diff = fabs(left_corner.distance - right_corner.distance);
-            if (distance_diff > 1.0) continue;
-            
-            // 检查门区域内的点（应该比较远，表示开放空间）
-            int open_points = 0;
-            int total_points = right_corner.global_index - left_corner.global_index - 1;
-            
-            for (int k = left_corner.global_index + 1; k < right_corner.global_index; k++) {
-                if (k >= 0 && k < scan.ranges.size()) {
-                    float range = std::isinf(scan.ranges[k]) ? MAX_DETECTION_RANGE : scan.ranges[k];
-                    if (range > avg_dist * 0.7) {
-                        open_points++;
-                    }
-                }
-            }
-            
-            if (total_points <= 0) continue;
-            float openness = float(open_points) / total_points;
-            if (openness < 0.5) continue;
-            
             // 计算综合置信度
             float corner_conf = (left_corner.confidence + right_corner.confidence) / 2.0;
             float width_conf = 1.0 - fabs(actual_width - 1.0) / 1.0;
-            float distance_conf = 1.0 - distance_diff / avg_dist;
+
             
-            float total_confidence = (corner_conf + openness + width_conf + distance_conf) / 4.0;
+            float total_confidence = (corner_conf  + width_conf ) / 4.0;
             
             if (total_confidence > 0.4) {
                 candidates.push_back({
