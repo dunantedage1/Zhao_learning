@@ -756,7 +756,7 @@ int main(int argc, char **argv) {
             case 4: // 带避障的前向飞行
                 if (mission_forward_with_avoidance(FORWARD_DISTANCE, 0.2)) {
                     ROS_INFO("向前飞行完成");
-                    ROS_INFO("开始尝试穿门")
+                    ROS_INFO("开始尝试穿门");
                     mission_num = 5;
                 }
                 break;
@@ -848,7 +848,7 @@ int main(int argc, char **argv) {
                 
                 if (mission_pos_cruise(target_x, target_y, TARGET_ALTITUDE, 0, 0.3)) {
                     ROS_INFO("成功穿过门！");
-                    ROS_INFO("开始前往下一个门前")
+                    ROS_INFO("开始前往下一个门前");
                     mission_num = 8;
                 }
                 break;
